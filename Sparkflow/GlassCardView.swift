@@ -67,55 +67,7 @@ struct GlassCardView: View {
         .padding(20)
         .frame(minHeight: 180)
         .frame(maxWidth: .infinity)
-        .background(
-            ZStack {
-                // The Liquid Glass Effect
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                
-                // Gradient overlay for depth
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(hex: "44403c").opacity(0.25),
-                                Color(hex: "292524").opacity(0.35)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                
-                // Subtle top reflection
-                VStack {
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.06), Color.clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                    .frame(height: 80)
-                    Spacer()
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            }
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            .white.opacity(0.12),
-                            .white.opacity(0.04),
-                            .white.opacity(0.02),
-                            .white.opacity(0.06)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .shadow(color: Color.black.opacity(0.2), radius: 12, x: 0, y: 8)
+        .liquidGlass(cornerRadius: 24, intensity: 0.85)
     }
 }
 

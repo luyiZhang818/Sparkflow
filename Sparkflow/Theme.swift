@@ -4,6 +4,8 @@
 //
 //  Created by Luyi Zhang on 12/6/25.
 //
+//  Adopting Liquid Glass design from Apple's documentation:
+//  https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass
 
 
 import SwiftUI
@@ -32,6 +34,102 @@ extension Color {
             blue: Double(b) / 255,
             opacity: Double(a) / 255
         )
+    }
+}
+
+// MARK: - Liquid Glass View Modifier
+// Custom implementation based on Apple's Liquid Glass design language
+struct LiquidGlassModifier: ViewModifier {
+    var cornerRadius: CGFloat = 24
+    var tint: Color = .clear
+    var intensity: Double = 1.0
+    
+    func body(content: Content) -> some View {
+        content
+            .background(
+                ZStack {
+                    // Base glass layer with blur
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .opacity(0.7 * intensity)
+                    
+                    // Tint layer
+                    if tint != .clear {
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(tint.opacity(0.1 * intensity))
+                    }
+                    
+                    // Specular highlight - top edge reflection
+                    VStack(spacing: 0) {
+                        LinearGradient(
+                            colors: [
+                                .white.opacity(0.25 * intensity),
+                                .white.opacity(0.08 * intensity),
+                                .clear
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .frame(height: cornerRadius * 3)
+                        Spacer()
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                }
+            )
+            // Liquid border with gradient
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                .white.opacity(0.5 * intensity),
+                                .white.opacity(0.15 * intensity),
+                                .white.opacity(0.05 * intensity),
+                                .white.opacity(0.2 * intensity)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            )
+            // Soft shadow for depth
+            .shadow(color: .black.opacity(0.2 * intensity), radius: 16, x: 0, y: 8)
+    }
+}
+
+// MARK: - Glass Button Style
+struct LiquidGlassButtonStyle: ButtonStyle {
+    var tint: Color = .clear
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .opacity(configuration.isPressed ? 0.8 : 1.0)
+            .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+// MARK: - View Extension for Liquid Glass
+extension View {
+    func liquidGlass(
+        cornerRadius: CGFloat = 24,
+        tint: Color = .clear,
+        intensity: Double = 1.0
+    ) -> some View {
+        self.modifier(LiquidGlassModifier(
+            cornerRadius: cornerRadius,
+            tint: tint,
+            intensity: intensity
+        ))
+    }
+    
+    func liquidGlassCard() -> some View {
+        self.modifier(LiquidGlassModifier(cornerRadius: 24, intensity: 0.8))
+    }
+    
+    func liquidGlassPanel() -> some View {
+        self.modifier(LiquidGlassModifier(cornerRadius: 20, intensity: 0.6))
     }
 }
 
@@ -102,18 +200,64 @@ struct Theme {
         endPoint: .bottomTrailing
     )
     
-    // The ambient background mesh
+    // The ambient background mesh - Warm orange/brown gradient (fallback)
     static var backgroundMesh: some View {
         ZStack {
-            Color(hex: "1c1917").ignoresSafeArea()
+            // Base warm gradient - lighter tones
+            LinearGradient(
+                colors: [
+                    Color(hex: "2d1f1a"),  // Warm dark brown
+                    Color(hex: "1a1210"),  // Deep warm black
+                    Color(hex: "181010")   // Bottom dark
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
             
-            // Radial Glows - Warmer amber tones
-            RadialGradient(colors: [Color(hex: "92400E").opacity(0.15), .clear], center: .topLeading, startRadius: 0, endRadius: 600)
-                .ignoresSafeArea()
-            RadialGradient(colors: [Color(hex: "78350f").opacity(0.12), .clear], center: .bottomTrailing, startRadius: 0, endRadius: 500)
-                .ignoresSafeArea()
-            RadialGradient(colors: [Color(hex: "451a03").opacity(0.1), .clear], center: .center, startRadius: 100, endRadius: 400)
+            // Large ambient glow - top left (warm orange)
+            RadialGradient(
+                colors: [Color(hex: "c2410c").opacity(0.25), .clear],
+                center: .topLeading,
+                startRadius: 0,
+                endRadius: 500
+            )
+            .ignoresSafeArea()
+            
+            // Secondary glow - top right (amber)
+            RadialGradient(
+                colors: [Color(hex: "b45309").opacity(0.18), .clear],
+                center: UnitPoint(x: 0.8, y: 0.1),
+                startRadius: 0,
+                endRadius: 400
+            )
+            .ignoresSafeArea()
+            
+            // Bottom accent glow
+            RadialGradient(
+                colors: [Color(hex: "78350f").opacity(0.15), .clear],
+                center: .bottomTrailing,
+                startRadius: 0,
+                endRadius: 450
+            )
+            .ignoresSafeArea()
+            
+            // Subtle noise/texture overlay
+            Rectangle()
+                .fill(Color.white.opacity(0.015))
                 .ignoresSafeArea()
         }
+    }
+    
+    // Dashboard background with image
+    static var dashboardBackground: some View {
+        GeometryReader { geometry in
+            Image("DashboardBackground")
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .clipped()
+        }
+        .ignoresSafeArea()
     }
 }

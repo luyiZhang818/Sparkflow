@@ -6,6 +6,9 @@ struct ContentView: View {
     @State private var searchText = ""
     @State private var featuredNote: Note?
     @State private var selectedTag: String? = nil
+    @State private var noteToDelete: Note? = nil
+    @State private var showDeleteConfirmation = false
+    @State private var selectedNoteForReading: Note? = nil
     
     // Collect all unique tags from notes
     var allTags: [String] {
@@ -29,33 +32,30 @@ struct ContentView: View {
 
     var body: some View {
         NavigationView {
-            ZStack {
-                // Global Background
-                Theme.backgroundMesh
+            VStack(alignment: .leading, spacing: 0) {
                 
-                VStack(alignment: .leading, spacing: 0) {
+                // Header
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Sparkflow")
+                            .font(.custom("PlayfairDisplay-Regular", size: 34))
+                            .italic()
+                            .foregroundColor(Theme.textPrimary)
+                        Text("Curate your mind.")
+                            .font(.system(size: 13, weight: .regular))
+                            .tracking(0.5)
+                            .foregroundColor(Theme.textMuted)
+                    }
+                    Spacer()
                     
-                    // Header
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Commonplace")
-                                .font(.custom("PlayfairDisplay-Regular", size: 34))
-                                .italic()
-                                .foregroundColor(Theme.textPrimary)
-                            Text("Curate your mind.")
-                                .font(.system(size: 13, weight: .regular))
-                                .tracking(0.5)
-                                .foregroundColor(Theme.textMuted)
-                        }
-                        Spacer()
-                        
-                        // Orange Accent Add Button
-                        Button(action: { isAddingNote = true }) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(.white)
-                                .frame(width: 48, height: 48)
-                                .background(
+                    // Orange Accent Add Button with Liquid Glass
+                    Button(action: { isAddingNote = true }) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 48, height: 48)
+                            .background(
+                                ZStack {
                                     Circle()
                                         .fill(
                                             LinearGradient(
@@ -64,107 +64,147 @@ struct ContentView: View {
                                                 endPoint: .bottomTrailing
                                             )
                                         )
-                                )
-                                .shadow(color: Theme.accentGlow.opacity(0.5), radius: 12, x: 0, y: 6)
-                                .overlay(Circle().stroke(Color.white.opacity(0.2), lineWidth: 1))
+                                    
+                                    VStack {
+                                        Circle()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [.white.opacity(0.4), .clear],
+                                                    startPoint: .top,
+                                                    endPoint: .center
+                                                )
+                                            )
+                                            .frame(height: 24)
+                                        Spacer()
+                                    }
+                                    .frame(width: 48, height: 48)
+                                    .clipShape(Circle())
+                                }
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        LinearGradient(
+                                            colors: [.white.opacity(0.5), .white.opacity(0.1)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1
+                                    )
+                            )
+                            .shadow(color: Theme.accentGlow.opacity(0.5), radius: 12, x: 0, y: 6)
+                    }
+                    .buttonStyle(LiquidGlassButtonStyle())
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 20)
+                .padding(.bottom, 24)
+
+                // Scrollable Content
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 24) {
+                        // Featured Note
+                        if let featuredNote = featuredNote {
+                            FeaturedNoteView(note: featuredNote)
+                                .onTapGesture {
+                                    selectedNoteForReading = featuredNote
+                                }
+                        }
+                        
+                        // Search & Filter Card - Glassmorphism
+                        VStack(spacing: 12) {
+                            // Search Bar
+                            HStack(spacing: 12) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(Theme.textSecondary)
+                                    .font(.system(size: 16, weight: .medium))
+                                TextField("Search entries...", text: $searchText)
+                                    .foregroundColor(Theme.textPrimary)
+                                    .accentColor(Theme.accent)
+                                    .font(.system(size: 15))
+                                
+                                if !searchText.isEmpty {
+                                    Button(action: { searchText = "" }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 16))
+                                            .foregroundColor(Theme.textSecondary)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
+                            
+                            Divider()
+                                .background(Color.white.opacity(0.08))
+                            
+                            // Tag Filter Pills
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    TagFilterButton(
+                                        tag: "All",
+                                        isSelected: selectedTag == nil,
+                                        action: { selectedTag = nil }
+                                    )
+                                    
+                                    ForEach(allTags, id: \.self) { tag in
+                                        TagFilterButton(
+                                            tag: tag.capitalized,
+                                            isSelected: selectedTag == tag,
+                                            action: {
+                                                selectedTag = selectedTag == tag ? nil : tag
+                                            }
+                                        )
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                            }
+                        }
+                        .liquidGlassPanel()
+                        
+                        // Notes List
+                        LazyVStack(spacing: 16) {
+                            ForEach(filteredNotes) { note in
+                                Button(action: {
+                                    selectedNoteForReading = note
+                                }) {
+                                    GlassCardView(note: note)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        noteToDelete = note
+                                        showDeleteConfirmation = true
+                                    } label: {
+                                        Label("Delete Entry", systemImage: "trash")
+                                    }
+                                }
+                                .onLongPressGesture {
+                                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                    impactFeedback.impactOccurred()
+                                    noteToDelete = note
+                                    showDeleteConfirmation = true
+                                }
+                            }
+                        }
+                        
+                        if filteredNotes.isEmpty {
+                            VStack(spacing: 8) {
+                                Text("No thoughts found.")
+                                    .font(.custom("PlayfairDisplay-Regular", size: 18))
+                                    .italic()
+                                    .foregroundColor(Theme.textMuted)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 60)
                         }
                     }
                     .padding(.horizontal, 24)
-                    .padding(.top, 20)
-                    .padding(.bottom, 24)
-
-                    // Scrollable Content
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(spacing: 24) {
-                            // Featured Note
-                            if let featuredNote = featuredNote {
-                                FeaturedNoteView(note: featuredNote)
-                                    .onTapGesture {
-                                        // Navigate to journal - handled differently if needed
-                                    }
-                            }
-                            
-                            // Search & Filter Card
-                            VStack(spacing: 12) {
-                                // Search Bar
-                                HStack(spacing: 12) {
-                                    Image(systemName: "magnifyingglass")
-                                        .foregroundColor(Theme.textMuted)
-                                        .font(.system(size: 16))
-                                    TextField("Search entries...", text: $searchText)
-                                        .foregroundColor(Theme.textPrimary)
-                                        .accentColor(Theme.accent)
-                                        .font(.system(size: 15))
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 14)
-                                
-                                Divider()
-                                    .background(Color.white.opacity(0.05))
-                                
-                                // Tag Filter Pills
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 8) {
-                                        // All Button
-                                        TagFilterButton(
-                                            tag: "All",
-                                            isSelected: selectedTag == nil,
-                                            action: { selectedTag = nil }
-                                        )
-                                        
-                                        ForEach(allTags, id: \.self) { tag in
-                                            TagFilterButton(
-                                                tag: tag.capitalized,
-                                                isSelected: selectedTag == tag,
-                                                action: {
-                                                    selectedTag = selectedTag == tag ? nil : tag
-                                                }
-                                            )
-                                        }
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 12)
-                                }
-                            }
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(Color(hex: "292524").opacity(0.6))
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .fill(.ultraThinMaterial)
-                                    )
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
-                            )
-                            
-                            // Notes List
-                            LazyVStack(spacing: 16) {
-                                ForEach(filteredNotes) { note in
-                                    NavigationLink(destination: JournalView(note: note)) {
-                                        GlassCardView(note: note)
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
-                                }
-                            }
-                            
-                            if filteredNotes.isEmpty {
-                                VStack(spacing: 8) {
-                                    Text("No thoughts found.")
-                                        .font(.custom("PlayfairDisplay-Regular", size: 18))
-                                        .italic()
-                                        .foregroundColor(Theme.textMuted)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 60)
-                            }
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 40)
-                    }
+                    .padding(.bottom, 40)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Theme.dashboardBackground)
             .navigationBarHidden(true)
             .onAppear {
                 if !noteStore.notes.isEmpty {
@@ -174,6 +214,37 @@ struct ContentView: View {
             .sheet(isPresented: $isAddingNote) {
                 AddNoteView()
                     .environmentObject(noteStore)
+                    .presentationDetents([.fraction(0.93)])
+                    .presentationDragIndicator(.hidden)
+                    .presentationCornerRadius(32)
+                    .interactiveDismissDisabled(false)
+            }
+            .sheet(item: $selectedNoteForReading) { note in
+                JournalView(note: note)
+                    .environmentObject(noteStore)
+                    .presentationDetents([.fraction(0.93)])
+                    .presentationDragIndicator(.hidden)
+                    .presentationCornerRadius(32)
+                    .interactiveDismissDisabled(false)
+            }
+            .alert("Delete Entry", isPresented: $showDeleteConfirmation) {
+                Button("Cancel", role: .cancel) {
+                    noteToDelete = nil
+                }
+                Button("Delete", role: .destructive) {
+                    if let note = noteToDelete {
+                        withAnimation {
+                            noteStore.deleteNote(id: note.id)
+                            // Update featured note if it was deleted
+                            if featuredNote?.id == note.id {
+                                featuredNote = noteStore.notes.first
+                            }
+                        }
+                        noteToDelete = nil
+                    }
+                }
+            } message: {
+                Text("Are you sure you want to delete \"\(noteToDelete?.title ?? "this entry")\"? This action cannot be undone.")
             }
         }
         .navigationViewStyle(.stack)

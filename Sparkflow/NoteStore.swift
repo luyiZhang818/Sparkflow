@@ -35,6 +35,33 @@ class NoteStore: ObservableObject {
             print("Unable to save notes: \(error.localizedDescription)")
         }
     }
+    
+    func updateNote(id: String, content: String) {
+        if let index = notes.firstIndex(where: { $0.id == id }) {
+            notes[index].content = content
+            save()
+        }
+    }
+    
+    func updateNote(id: String, title: String? = nil, content: String? = nil, tags: [String]? = nil) {
+        if let index = notes.firstIndex(where: { $0.id == id }) {
+            if let title = title {
+                notes[index].title = title
+            }
+            if let content = content {
+                notes[index].content = content
+            }
+            if let tags = tags {
+                notes[index].tags = tags
+            }
+            save()
+        }
+    }
+    
+    func deleteNote(id: String) {
+        notes.removeAll { $0.id == id }
+        save()
+    }
 }
 
 let sampleNotes = [

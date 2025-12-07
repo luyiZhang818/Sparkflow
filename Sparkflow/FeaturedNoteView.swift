@@ -66,58 +66,7 @@ struct FeaturedNoteView: View {
         .padding(.vertical, 28)
         .frame(minHeight: 280)
         .frame(maxWidth: .infinity)
-        .background(
-            ZStack {
-                // The Liquid Glass Effect
-                RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                
-                // Subtle gradient overlay
-                RoundedRectangle(cornerRadius: 32, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(hex: "44403c").opacity(0.3),
-                                Color(hex: "292524").opacity(0.4)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                
-                // Top reflection
-                VStack {
-                    RoundedRectangle(cornerRadius: 32, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.08), Color.clear],
-                                startPoint: .top,
-                                endPoint: .center
-                            )
-                        )
-                        .frame(height: 140)
-                    Spacer()
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-            }
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            .white.opacity(0.15),
-                            .white.opacity(0.05),
-                            .white.opacity(0.02),
-                            .white.opacity(0.08)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .shadow(color: Color.black.opacity(0.25), radius: 20, x: 0, y: 12)
+        .liquidGlass(cornerRadius: 32, intensity: 1.0)
         .onAppear {
             displayedQuote = getRandomSentence()
         }
@@ -133,4 +82,5 @@ struct FeaturedNoteView_Previews: PreviewProvider {
         }
     }
 }
+
 
