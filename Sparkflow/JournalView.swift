@@ -4,40 +4,15 @@ struct JournalView: View {
     let note: Note
     @EnvironmentObject var noteStore: NoteStore
     @Environment(\.presentationMode) var presentationMode
-    @State private var currentPage = 0
-    @State private var isEditing = false
-    @State private var editedTitle: String = ""
-    @State private var editedContent: String = ""
-    @State private var editedTags: [String] = []
-    
-    // Computed pages based on current content (edited or original)
-    private var pages: [String] {
-        let content = isEditing ? editedContent : note.content
-        return content.chunked(into: 500).map { String($0) }
-    }
-    
-    // Current title (edited or original)
-    private var currentTitle: String {
-        isEditing ? editedTitle : note.title
-    }
-    
-    // Current tags (edited or original)
-    private var currentTags: [String] {
-        isEditing ? editedTags : note.tags
-    }
+    @State private var isAddingBullet = false
+    @State private var newBulletText = ""
+    @FocusState private var isBulletInputFocused: Bool
     
     // Formatted date for display
     private var formattedDate: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, d MMMM yyyy"
         return formatter.string(from: note.createdAt)
-    }
-
-    init(note: Note) {
-        self.note = note
-        _editedTitle = State(initialValue: note.title)
-        _editedContent = State(initialValue: note.content)
-        _editedTags = State(initialValue: note.tags)
     }
 
     var body: some View {
@@ -72,63 +47,236 @@ struct JournalView: View {
                     .foregroundColor(Theme.textMuted)
                     .padding(.top, 4)
                 
-                // Title - Reading mode
+                // Title
                 Text("Revisit your spark")
                     .font(.custom("PlayfairDisplay-Regular", size: 24))
                     .foregroundColor(Theme.textPrimary)
                     .padding(.top, 2)
-                    .padding(.bottom, 20) // Margin A
+                    .padding(.bottom, 20)
                 
-                // The Book/Page View
-                if isEditing {
-                    // Edit Mode - Full text editor
-                    JournalEditView(
-                        note: note,
-                        title: $editedTitle,
-                        content: $editedContent,
-                        tags: $editedTags,
-                        onDone: {
-                            // Save all edited fields
-                            noteStore.updateNote(
-                                id: note.id,
-                                title: editedTitle,
-                                content: editedContent,
-                                tags: editedTags
-                            )
-                            isEditing = false
-                        }
-                    )
-                    
-                    // Flexible spacer to push bottom panels down
-                    Spacer()
-                } else {
-                    // Read Mode - Paginated view
-                    TabView(selection: $currentPage) {
-                        ForEach(pages.indices, id: \.self) { index in
-                            JournalPageView(
-                                title: currentTitle,
-                                tags: currentTags,
-                                content: pages[index],
-                                date: formattedDate,
-                                pageNumber: index + 1,
-                                totalPages: pages.count,
-                                isFirstPage: index == 0,
-                                onTapToEdit: {
-                                    isEditing = true
+                // The Journal Card
+                VStack(alignment: .leading, spacing: 0) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            // MARK: - Spark (Primary, Most Prominent - READONLY)
+                            Text(note.spark)
+                                .font(.custom("PlayfairDisplay-Regular", size: 24))
+                                .foregroundColor(Theme.textDark)
+                                .lineSpacing(4)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 24)
+                                .padding(.top, 24)
+                                .padding(.bottom, 8)
+                            
+                            // MARK: - Source (Subtle, READONLY)
+                            if let source = note.source, !source.isEmpty {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "link")
+                                        .font(.system(size: 10, weight: .medium))
+                                    Text(source)
+                                        .font(.system(size: 13, weight: .medium))
                                 }
-                            )
-                            .tag(index)
+                                .foregroundColor(Theme.accent.opacity(0.9))
+                                .padding(.horizontal, 24)
+                                .padding(.bottom, 12)
+                            }
+                            
+                            // MARK: - Tags (READONLY display)
+                            if !note.tags.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 6) {
+                                        ForEach(note.tags, id: \.self) { tag in
+                                            Text(tag.uppercased())
+                                                .font(.system(size: 9, weight: .bold))
+                                                .tracking(0.5)
+                                                .foregroundColor(Color(hex: "8c7b64"))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 4)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 4)
+                                                        .stroke(Color(hex: "8c7b64").opacity(0.4), lineWidth: 1)
+                                                )
+                                        }
+                                    }
+                                    .padding(.horizontal, 24)
+                                }
+                                .padding(.bottom, 16)
+                            }
+                            
+                            Divider()
+                                .background(Color(hex: "d4d0c8"))
+                                .padding(.horizontal, 24)
+                            
+                            // MARK: - Bullet Timeline Header
+                            HStack {
+                                Text("REFLECTIONS")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .tracking(1)
+                                    .foregroundColor(Color(hex: "8c7b64").opacity(0.8))
+                                
+                                Spacer()
+                                
+                                Text("\(note.bullets.count) thought\(note.bullets.count == 1 ? "" : "s")")
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(Color(hex: "8c7b64").opacity(0.6))
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.top, 16)
+                            .padding(.bottom, 12)
+                            
+                            // MARK: - Bullet Timeline (Oldest → Newest)
+                            VStack(alignment: .leading, spacing: 0) {
+                                ForEach(Array(note.bullets.enumerated()), id: \.element.id) { index, bullet in
+                                    BulletTimelineItem(
+                                        bullet: bullet,
+                                        isFirst: index == 0,
+                                        isLast: index == note.bullets.count - 1
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, isAddingBullet ? 8 : 16)
+                            
+                            // MARK: - Add New Bullet Section
+                            if isAddingBullet {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack(spacing: 8) {
+                                        // Timeline connector
+                                        VStack(spacing: 0) {
+                                            Rectangle()
+                                                .fill(Theme.accent.opacity(0.3))
+                                                .frame(width: 2, height: 12)
+                                            Circle()
+                                                .fill(Theme.accent)
+                                                .frame(width: 8, height: 8)
+                                        }
+                                        .frame(width: 20)
+                                        
+                                        Text("NOW")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .tracking(0.5)
+                                            .foregroundColor(Theme.accent)
+                                    }
+                                    
+                                    ZStack(alignment: .topLeading) {
+                                        if newBulletText.isEmpty {
+                                            Text("Add your new reflection...")
+                                                .font(.custom("Georgia", size: 15))
+                                                .italic()
+                                                .foregroundColor(Color(hex: "a8a29e"))
+                                                .padding(.leading, 28)
+                                                .allowsHitTesting(false)
+                                        }
+                                        
+                                        HStack(alignment: .top, spacing: 8) {
+                                            Spacer()
+                                                .frame(width: 20)
+                                            
+                                            TextEditor(text: $newBulletText)
+                                                .font(.custom("Georgia", size: 15))
+                                                .foregroundColor(Theme.textDark)
+                                                .scrollContentBackground(.hidden)
+                                                .background(Color.clear)
+                                                .frame(minHeight: 60, maxHeight: 100)
+                                                .focused($isBulletInputFocused)
+                                        }
+                                    }
+                                    
+                                    // Action buttons
+                                    HStack {
+                                        Spacer()
+                                        
+                                        Button(action: {
+                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                isAddingBullet = false
+                                                newBulletText = ""
+                                            }
+                                        }) {
+                                            Text("Cancel")
+                                                .font(.system(size: 12, weight: .medium))
+                                                .foregroundColor(Theme.textMuted)
+                                                .padding(.horizontal, 16)
+                                                .padding(.vertical, 8)
+                                        }
+                                        
+                                        Button(action: saveBullet) {
+                                            Text("Add")
+                                                .font(.system(size: 12, weight: .semibold))
+                                                .foregroundColor(.white)
+                                                .padding(.horizontal, 20)
+                                                .padding(.vertical, 8)
+                                                .background(
+                                                    Capsule()
+                                                        .fill(Theme.accent)
+                                                )
+                                        }
+                                        .disabled(newBulletText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                        .opacity(newBulletText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
+                                    }
+                                }
+                                .padding(.horizontal, 24)
+                                .padding(.bottom, 16)
+                            }
                         }
                     }
-                    .tabViewStyle(.page(indexDisplayMode: .never))
-                    .frame(height: 460) // Larger page section
+                    
+                    // MARK: - Footer with Add Reflection Button
+                    if !isAddingBullet {
+                        HStack {
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    isAddingBullet = true
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                        isBulletInputFocused = true
+                                    }
+                                }
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 14))
+                                    Text("Add reflection")
+                                        .font(.system(size: 13, weight: .medium))
+                                }
+                                .foregroundColor(Theme.accent)
+                            }
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .background(
+                            Rectangle()
+                                .fill(Color(hex: "e8e4dc"))
+                                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: -4)
+                        )
+                    }
                 }
+                .frame(maxWidth: .infinity)
+                .frame(height: 460)
+                .background(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .fill(Color(hex: "e8e4dc"))
+                )
+                .overlay(
+                    // Binding shadow on left
+                    HStack {
+                        LinearGradient(
+                            colors: [Color.black.opacity(0.08), Color.clear],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        .frame(width: 8)
+                        Spacer()
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                )
+                .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
+                .padding(.horizontal, 24)
                 
-                // Spacer with fixed height for Margin B (same as Margin A)
                 Spacer()
-                    .frame(height: 20) // Margin B
+                    .frame(height: 20)
                 
-                // Entry Dots Panel - Visual representation of journal entries
+                // Entry Dots Panel
                 EntryDotsView(notes: noteStore.notes, currentNoteId: note.id)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 24)
@@ -138,276 +286,98 @@ struct JournalView: View {
         .gesture(
             DragGesture()
                 .onEnded { value in
-                    if value.translation.height > 100 && !isEditing {
+                    if value.translation.height > 100 && !isAddingBullet {
                         presentationMode.wrappedValue.dismiss()
                     }
                 }
         )
-    }
-}
-
-// Individual Page View - matching Journal.png paper card style
-struct JournalPageView: View {
-    let title: String
-    let tags: [String]
-    let content: String
-    let date: String
-    let pageNumber: Int
-    let totalPages: Int
-    let isFirstPage: Bool
-    let onTapToEdit: () -> Void
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header on first page - Title, Tags, Date
-            if isFirstPage {
-                // Title
-                Text(title)
-                    .font(.custom("PlayfairDisplay-Regular", size: 22))
-                    .foregroundColor(Theme.textDark)
-                    .padding(.bottom, 8)
-                
-                // Tags Row - All tags with horizontal scroll
-                if !tags.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            ForEach(tags, id: \.self) { tag in
-                                Text(tag.uppercased())
-                                    .font(.system(size: 9, weight: .bold))
-                                    .tracking(0.5)
-                                    .foregroundColor(Color(hex: "8c7b64"))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .stroke(Color(hex: "8c7b64").opacity(0.4), lineWidth: 1)
-                                    )
-                            }
-                        }
-                    }
-                    .padding(.bottom, 8)
-                }
-                
-                // Date
-                Text(date)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Theme.textMuted)
-                    .padding(.bottom, 16)
-                
-                Divider()
-                    .background(Color(hex: "d4d0c8"))
-                    .padding(.bottom, 16)
-            }
-            
-            // Content - Serif italic text
-            Text(content)
-                .font(.custom("Georgia", size: 17))
-                .foregroundColor(Theme.textDark)
-                .lineSpacing(8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            
-            Spacer()
-            
-            // Footer
-            HStack {
-                Button(action: onTapToEdit) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "pencil")
-                            .font(.system(size: 10))
-                        Text("Tap to edit")
-                            .font(.system(size: 12))
-                    }
-                    .foregroundColor(Theme.accent.opacity(0.8))
-                }
-                
-                Spacer()
-                
-                Text("\(pageNumber) / \(totalPages)")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(Theme.textMuted)
-            }
-        }
-        .padding(24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            ZStack {
-                // Paper background - warm cream color
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color(hex: "e8e4dc"))
-                
-                // Subtle paper texture gradient
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.3),
-                                Color.clear,
-                                Color.black.opacity(0.02)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            }
-        )
-        .overlay(
-            // Subtle paper edge shadow on left (like binding)
-            HStack {
-                LinearGradient(
-                    colors: [Color.black.opacity(0.08), Color.clear],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: 8)
-                Spacer()
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        )
-        .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
-        .padding(.horizontal, 24)
-        .contentShape(Rectangle())
         .onTapGesture {
-            onTapToEdit()
+            // Dismiss keyboard when tapping outside
+            if isAddingBullet {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
+        }
+    }
+    
+    // MARK: - Save New Bullet
+    private func saveBullet() {
+        let trimmedText = newBulletText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedText.isEmpty else { return }
+        
+        noteStore.addBullet(to: note.id, text: trimmedText)
+        
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isAddingBullet = false
+            newBulletText = ""
         }
     }
 }
 
-// Edit View - Full screen text editor with title and tags
-struct JournalEditView: View {
-    let note: Note
-    @Binding var title: String
-    @Binding var content: String
-    @Binding var tags: [String]
-    let onDone: () -> Void
+// MARK: - Bullet Timeline Item
+struct BulletTimelineItem: View {
+    let bullet: Bullet
+    let isFirst: Bool
+    let isLast: Bool
     
-    @State private var tagInput: String = ""
-    @FocusState private var focusedField: EditField?
-    
-    enum EditField {
-        case title, content
+    private var formattedTimestamp: String {
+        let formatter = DateFormatter()
+        let calendar = Calendar.current
+        
+        if calendar.isDateInToday(bullet.timestamp) {
+            formatter.dateFormat = "'Today at' h:mm a"
+        } else if calendar.isDateInYesterday(bullet.timestamp) {
+            formatter.dateFormat = "'Yesterday at' h:mm a"
+        } else if calendar.isDate(bullet.timestamp, equalTo: Date(), toGranularity: .year) {
+            formatter.dateFormat = "MMM d 'at' h:mm a"
+        } else {
+            formatter.dateFormat = "MMM d, yyyy"
+        }
+        
+        return formatter.string(from: bullet.timestamp)
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Editable Title
-            TextField("Title", text: $title)
-                .font(.custom("PlayfairDisplay-Regular", size: 20))
-                .foregroundColor(Theme.textDark)
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .padding(.bottom, 8)
-                .focused($focusedField, equals: .title)
-            
-            // Tags Row
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(tags, id: \.self) { tag in
-                        HStack(spacing: 4) {
-                            Text(tag.uppercased())
-                                .font(.system(size: 9, weight: .bold))
-                                .tracking(0.5)
-                            
-                            Button(action: { tags.removeAll { $0 == tag } }) {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 8, weight: .bold))
-                            }
-                        }
-                        .foregroundColor(Color(hex: "8c7b64"))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(Color(hex: "8c7b64").opacity(0.4), lineWidth: 1)
-                        )
-                    }
-                    
-                    // Add Tag Input
-                    HStack(spacing: 4) {
-                        TextField("+TAG", text: $tagInput)
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(Color(hex: "8c7b64"))
-                            .frame(width: 50)
-                            .onSubmit { addTag() }
-                        
-                        Button(action: addTag) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(Color(hex: "8c7b64"))
-                        }
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 8)
+        HStack(alignment: .top, spacing: 8) {
+            // Timeline indicator
+            VStack(spacing: 0) {
+                // Top line (hidden for first item)
+                Rectangle()
+                    .fill(isFirst ? Color.clear : Color(hex: "8c7b64").opacity(0.3))
+                    .frame(width: 2, height: 8)
+                
+                // Dot
+                Circle()
+                    .fill(isFirst ? Theme.accent : Color(hex: "8c7b64").opacity(0.5))
+                    .frame(width: 8, height: 8)
+                
+                // Bottom line (hidden for last item)
+                Rectangle()
+                    .fill(isLast ? Color.clear : Color(hex: "8c7b64").opacity(0.3))
+                    .frame(width: 2)
+                    .frame(maxHeight: .infinity)
             }
+            .frame(width: 20)
             
-            Divider()
-                .background(Color(hex: "d4d0c8"))
-                .padding(.horizontal, 24)
-            
-            // Editable Content
-            TextEditor(text: $content)
-                .font(.custom("Georgia", size: 17))
-                .foregroundColor(Theme.textDark)
-                .lineSpacing(8)
-                .scrollContentBackground(.hidden)
-                .background(Color.clear)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .focused($focusedField, equals: .content)
-            
-            // Done button
-            HStack {
-                Spacer()
-                Button(action: onDone) {
-                    Text("Done")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 10)
-                        .background(
-                            Capsule()
-                                .fill(Theme.accent)
-                        )
-                }
-                .padding(.trailing, 24)
-                .padding(.bottom, 16)
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                // Timestamp
+                Text(formattedTimestamp)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(Color(hex: "8c7b64").opacity(0.7))
+                
+                // Bullet text
+                Text(bullet.text)
+                    .font(.custom("Georgia", size: 15))
+                    .foregroundColor(Theme.textDark)
+                    .lineSpacing(4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 420) // Same height as read mode and AddNoteView
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(hex: "e8e4dc"))
-        )
-        .overlay(
-            HStack {
-                LinearGradient(
-                    colors: [Color.black.opacity(0.08), Color.clear],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .frame(width: 8)
-                Spacer()
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        )
-        .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
-        .padding(.horizontal, 24)
-        .onAppear {
-            focusedField = .content
-        }
-    }
-    
-    private func addTag() {
-        let trimmed = tagInput.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if !trimmed.isEmpty && !tags.contains(trimmed) {
-            tags.append(trimmed)
-            tagInput = ""
+            .padding(.bottom, isLast ? 0 : 16)
         }
     }
 }
 
-// Entry Dots Panel - Visual representation of all journal entries
+// MARK: - Entry Dots Panel
 struct EntryDotsView: View {
     let notes: [Note]
     let currentNoteId: String
@@ -425,13 +395,13 @@ struct EntryDotsView: View {
         VStack(spacing: 10) {
             // Label
             HStack {
-                Text("\(notes.count) entries")
+                Text("\(notes.count) sparks")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(Theme.textMuted)
                 Spacer()
             }
             
-            // Dots - Horizontal scroll with tighter spacing
+            // Dots
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHGrid(rows: [
                     GridItem(.fixed(8), spacing: 2),
@@ -460,83 +430,31 @@ struct EntryDotsView: View {
         .liquidGlass(cornerRadius: 16, intensity: 0.5)
     }
     
-    // Get color for dot based on first tag
     private func dotColor(for note: Note) -> Color {
         guard let firstTag = note.tags.first else {
             return Color.white.opacity(0.3)
         }
         
-        // Return tag-specific colors
         switch firstTag.lowercased() {
-        case "inspiration":
-            return Color(hex: "F59E0B") // Amber
-        case "quote":
-            return Color(hex: "a8a29e") // Stone
-        case "idea":
-            return Color(hex: "ea580c") // Orange
-        case "journal":
-            return Color(hex: "f472b6") // Rose/Pink
-        case "dream":
-            return Color(hex: "818cf8") // Indigo/Purple
-        case "stoicism":
-            return Color(hex: "9ca3af") // Gray
-        case "design":
-            return Color(hex: "a3a3a3") // Neutral
-        default:
-            return Color(hex: "D97706") // Default amber
+        case "inspiration": return Color(hex: "F59E0B")
+        case "quote": return Color(hex: "a8a29e")
+        case "idea": return Color(hex: "ea580c")
+        case "journal": return Color(hex: "f472b6")
+        case "dream": return Color(hex: "818cf8")
+        case "stoicism": return Color(hex: "9ca3af")
+        case "design": return Color(hex: "a3a3a3")
+        case "philosophy": return Color(hex: "a78bfa")
+        case "creativity": return Color(hex: "fb923c")
+        case "mindfulness": return Color(hex: "4ade80")
+        default: return Color(hex: "D97706")
         }
     }
 }
 
-// Reusable Page Component mimicking the paper look (kept for compatibility)
-struct BookPageView<Content: View>: View {
-    let content: Content
-    
-    init(@ViewBuilder content: () -> Content) {
-        self.content = content()
-    }
-    
-    var body: some View {
-        ZStack {
-            // Paper Layer
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Theme.paper)
-                .shadow(color: .black.opacity(0.3), radius: 10, x: 5, y: 5)
-            
-            // "Binding" Gradient on the left
-            HStack {
-                LinearGradient(colors: [.black.opacity(0.1), .clear], startPoint: .leading, endPoint: .trailing)
-                    .frame(width: 20)
-                Spacer()
-            }
-            .mask(RoundedRectangle(cornerRadius: 16))
-            
-            // Content
-            content
-                .padding(30)
-        }
-        .padding(.horizontal, 30)
-        .rotation3DEffect(.degrees(0), axis: (x: 0, y: 1, z: 0))
-    }
-}
-
-// Helper to split string into chunks for pagination
-extension String {
-    func chunked(into size: Int) -> [SubSequence] {
-        var chunks: [SubSequence] = []
-        var from = startIndex
-        while from < endIndex {
-            let to = index(from, offsetBy: size, limitedBy: endIndex) ?? endIndex
-            chunks.append(self[from..<to])
-            from = to
-        }
-        return chunks
-    }
-}
-
+// MARK: - Preview
 struct JournalView_Previews: PreviewProvider {
     static var previews: some View {
-        JournalView(note: sampleNotes[1])
+        JournalView(note: sampleNotes[0])
             .environmentObject(NoteStore())
     }
 }

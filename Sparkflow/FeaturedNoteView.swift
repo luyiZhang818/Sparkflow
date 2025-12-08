@@ -2,18 +2,6 @@ import SwiftUI
 
 struct FeaturedNoteView: View {
     let note: Note
-    @State private var displayedQuote: String = ""
-    
-    private func getRandomSentence() -> String {
-        let sentences = note.content.components(separatedBy: CharacterSet(charactersIn: ".?!"))
-        let validSentences = sentences.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        let sentence = validSentences.randomElement()?.trimmingCharacters(in: .whitespacesAndNewlines) ?? note.content
-        // Truncate if too long
-        if sentence.count > 180 {
-            return String(sentence.prefix(180)) + "..."
-        }
-        return sentence
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,14 +20,14 @@ struct FeaturedNoteView: View {
                     .frame(width: 44, height: 44)
                     .shadow(color: Theme.accentGlow.opacity(0.4), radius: 10, x: 0, y: 4)
                 
-                Image(systemName: "quote.opening")
-                    .font(.system(size: 16, weight: .bold))
+                Image(systemName: "sparkle")
+                    .font(.system(size: 18, weight: .bold))
                     .foregroundColor(.white)
             }
             .padding(.bottom, 24)
             
-            // Quote Content
-            Text("\"\(displayedQuote)\"")
+            // MARK: - Spark Content (Primary Display)
+            Text("\"\(note.spark)\"")
                 .font(.custom("PlayfairDisplay-Regular", size: 22))
                 .italic()
                 .foregroundColor(Theme.textPrimary)
@@ -52,13 +40,24 @@ struct FeaturedNoteView: View {
             Spacer()
                 .frame(height: 20)
             
-            // Source Label - Uppercase tracking
-            Text(note.title.uppercased())
-                .font(.system(size: 11, weight: .bold))
-                .tracking(2)
-                .foregroundColor(Theme.accent)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, alignment: .center)
+            // MARK: - Source Label (Only if available)
+            if let source = note.source, !source.isEmpty {
+                Text(source.uppercased())
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(2)
+                    .foregroundColor(Theme.accent)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
+            
+            Spacer()
+                .frame(height: 16)
+            
+            // MARK: - Microcopy / Call to Action
+            Text("Tap to revisit this spark")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(Theme.textMuted.opacity(0.7))
+                .italic()
             
             Spacer()
         }
@@ -67,20 +66,23 @@ struct FeaturedNoteView: View {
         .frame(minHeight: 280)
         .frame(maxWidth: .infinity)
         .liquidGlass(cornerRadius: 32, intensity: 1.0)
-        .onAppear {
-            displayedQuote = getRandomSentence()
-        }
     }
 }
 
+// MARK: - Preview
 struct FeaturedNoteView_Previews: PreviewProvider {
     static var previews: some View {
         ZStack {
             Theme.backgroundMesh
-            FeaturedNoteView(note: sampleNotes[0])
-                .padding()
+            VStack(spacing: 20) {
+                // With source
+                FeaturedNoteView(note: sampleNotes[0])
+                    .padding()
+                
+                // Without source
+                FeaturedNoteView(note: sampleNotes[2])
+                    .padding()
+            }
         }
     }
 }
-
-

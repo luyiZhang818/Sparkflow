@@ -22,9 +22,11 @@ struct ContentView: View {
     // Filtered notes based on search and tag
     var filteredNotes: [Note] {
         noteStore.notes.filter { note in
+            // Search across spark, source, and bullet text
             let matchesSearch = searchText.isEmpty || 
-                note.title.localizedCaseInsensitiveContains(searchText) ||
-                note.content.localizedCaseInsensitiveContains(searchText)
+                note.spark.localizedCaseInsensitiveContains(searchText) ||
+                (note.source?.localizedCaseInsensitiveContains(searchText) ?? false) ||
+                note.bullets.contains { $0.text.localizedCaseInsensitiveContains(searchText) }
             let matchesTag = selectedTag == nil || note.tags.contains(selectedTag!)
             return matchesSearch && matchesTag
         }
@@ -107,7 +109,7 @@ struct ContentView: View {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(Theme.textSecondary)
                             .font(.system(size: 16, weight: .medium))
-                        TextField("Search entries...", text: $searchText)
+                        TextField("Search sparks...", text: $searchText)
                             .foregroundColor(Theme.textPrimary)
                             .accentColor(Theme.accent)
                             .font(.system(size: 15))
@@ -162,7 +164,7 @@ struct ContentView: View {
                 // Scrollable Content
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 24) {
-                        // Featured Note
+                        // Featured Note (Quote Widget)
                         if let featuredNote = featuredNote {
                             FeaturedNoteView(note: featuredNote)
                                 .onTapGesture {
@@ -184,7 +186,7 @@ struct ContentView: View {
                                         noteToDelete = note
                                         showDeleteConfirmation = true
                                     } label: {
-                                        Label("Delete Entry", systemImage: "trash")
+                                        Label("Delete Spark", systemImage: "trash")
                                     }
                                 }
                                 .onLongPressGesture {
@@ -198,7 +200,7 @@ struct ContentView: View {
                         
                         if filteredNotes.isEmpty {
                             VStack(spacing: 8) {
-                                Text("No thoughts found.")
+                                Text("No sparks found.")
                                     .font(.custom("PlayfairDisplay-Regular", size: 18))
                                     .italic()
                                     .foregroundColor(Theme.textMuted)
@@ -228,14 +230,17 @@ struct ContentView: View {
                     .interactiveDismissDisabled(false)
             }
             .sheet(item: $selectedNoteForReading) { note in
-                JournalView(note: note)
+                // Find the current version of the note from the store
+                // This ensures we have the latest bullets
+                let currentNote = noteStore.notes.first(where: { $0.id == note.id }) ?? note
+                JournalView(note: currentNote)
                     .environmentObject(noteStore)
                     .presentationDetents([.fraction(0.93)])
                     .presentationDragIndicator(.hidden)
                     .presentationCornerRadius(32)
                     .interactiveDismissDisabled(false)
             }
-            .alert("Delete Entry", isPresented: $showDeleteConfirmation) {
+            .alert("Delete Spark", isPresented: $showDeleteConfirmation) {
                 Button("Cancel", role: .cancel) {
                     noteToDelete = nil
                 }
@@ -252,7 +257,11 @@ struct ContentView: View {
                     }
                 }
             } message: {
-                Text("Are you sure you want to delete \"\(noteToDelete?.title ?? "this entry")\"? This action cannot be undone.")
+                if let note = noteToDelete {
+                    Text("Delete this spark and all \(note.bulletCount) reflection\(note.bulletCount == 1 ? "" : "s")? This cannot be undone.")
+                } else {
+                    Text("Are you sure you want to delete this spark?")
+                }
             }
         }
         .navigationViewStyle(.stack)
