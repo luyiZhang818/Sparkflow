@@ -34,7 +34,7 @@ struct AddNoteView: View {
 
     var body: some View {
         ZStack {
-            // Dark Background for sheet presentation - covers entire view including safe areas
+            // Dark Background
             Color(hex: "0a0a0a")
                 .ignoresSafeArea(edges: .all)
             
@@ -85,14 +85,10 @@ struct AddNoteView: View {
                     .foregroundColor(Theme.textMuted)
                     .padding(.top, 4)
                 
-                // Title - "Jot down your spark" with spark italicized
-                HStack(spacing: 0) {
-                    Text("Jot down your ")
-                        .font(.custom("PlayfairDisplay-Regular", size: 24))
-                    Text("spark")
-                        .font(.custom("PlayfairDisplay-Italic", size: 24))
-                }
-                .foregroundColor(Theme.textPrimary)
+                // Title - "Jot down your spark"
+                Text("Jot down your spark")
+                    .font(.custom("PlayfairDisplay-Regular", size: 24))
+                    .foregroundColor(Theme.textPrimary)
                 .padding(.top, 2)
                 .padding(.bottom, 20) // Margin A
                 

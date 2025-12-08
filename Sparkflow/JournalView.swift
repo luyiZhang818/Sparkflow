@@ -42,7 +42,7 @@ struct JournalView: View {
 
     var body: some View {
         ZStack {
-            // Dark Background for sheet presentation - covers entire view including safe areas
+            // Dark Background
             Color(hex: "0a0a0a")
                 .ignoresSafeArea(edges: .all)
             
@@ -75,7 +75,6 @@ struct JournalView: View {
                 // Title - Reading mode
                 Text("Revisit your spark")
                     .font(.custom("PlayfairDisplay-Regular", size: 24))
-                    .italic()
                     .foregroundColor(Theme.textPrimary)
                     .padding(.top, 2)
                     .padding(.bottom, 20) // Margin A
