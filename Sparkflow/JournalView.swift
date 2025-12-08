@@ -58,26 +58,31 @@ struct JournalView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 0) {
-                            // MARK: - Spark (Primary, Most Prominent - READONLY)
-                            Text(note.spark)
-                                .font(.custom("PlayfairDisplay-Regular", size: 24))
-                                .foregroundColor(Theme.textDark)
-                                .lineSpacing(4)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.horizontal, 24)
-                                .padding(.top, 24)
-                                .padding(.bottom, 8)
+                            // MARK: - Spark (Primary, Most Prominent - READONLY, Quote Style)
+                            VStack(spacing: 8) {
+                                Text("\"\(note.spark)\"")
+                                    .font(.custom("PlayfairDisplay-Regular", size: 22))
+                                    .italic()
+                                    .foregroundColor(Theme.textDark)
+                                    .lineSpacing(6)
+                                    .multilineTextAlignment(.center)
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.top, 24)
+                            .padding(.bottom, 8)
                             
-                            // MARK: - Source (Subtle, READONLY)
+                            // MARK: - Source (Subtle, READONLY, Centered)
                             if let source = note.source, !source.isEmpty {
                                 HStack(spacing: 4) {
-                                    Image(systemName: "link")
-                                        .font(.system(size: 10, weight: .medium))
+                                    Text("—")
+                                        .font(.system(size: 12, weight: .medium))
                                     Text(source)
-                                        .font(.system(size: 13, weight: .medium))
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .tracking(0.5)
                                 }
                                 .foregroundColor(Theme.accent.opacity(0.9))
-                                .padding(.horizontal, 24)
+                                .frame(maxWidth: .infinity)
                                 .padding(.bottom, 12)
                             }
                             
@@ -124,53 +129,36 @@ struct JournalView: View {
                             .padding(.top, 16)
                             .padding(.bottom, 12)
                             
-                            // MARK: - Bullet Timeline (Oldest → Newest)
-                            VStack(alignment: .leading, spacing: 0) {
-                                ForEach(Array(note.bullets.enumerated()), id: \.element.id) { index, bullet in
-                                    BulletTimelineItem(
-                                        bullet: bullet,
-                                        isFirst: index == 0,
-                                        isLast: index == note.bullets.count - 1
-                                    )
-                                }
-                            }
-                            .padding(.horizontal, 24)
-                            .padding(.bottom, isAddingBullet ? 8 : 16)
-                            
-                            // MARK: - Add New Bullet Section
+                            // MARK: - Add New Bullet Section (At TOP - newest first)
                             if isAddingBullet {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack(spacing: 8) {
-                                        // Timeline connector
-                                        VStack(spacing: 0) {
-                                            Rectangle()
-                                                .fill(Theme.accent.opacity(0.3))
-                                                .frame(width: 2, height: 12)
-                                            Circle()
-                                                .fill(Theme.accent)
-                                                .frame(width: 8, height: 8)
-                                        }
-                                        .frame(width: 20)
-                                        
+                                HStack(alignment: .top, spacing: 8) {
+                                    // Continuous timeline running full height
+                                    VStack(spacing: 0) {
+                                        Circle()
+                                            .fill(Theme.accent)
+                                            .frame(width: 8, height: 8)
+                                        Rectangle()
+                                            .fill(Color(hex: "8c7b64").opacity(0.3))
+                                            .frame(width: 2)
+                                            .frame(maxHeight: .infinity)
+                                    }
+                                    .frame(width: 20)
+                                    
+                                    // Content area
+                                    VStack(alignment: .leading, spacing: 8) {
                                         Text("NOW")
                                             .font(.system(size: 10, weight: .bold))
                                             .tracking(0.5)
                                             .foregroundColor(Theme.accent)
-                                    }
-                                    
-                                    ZStack(alignment: .topLeading) {
-                                        if newBulletText.isEmpty {
-                                            Text("Add your new reflection...")
-                                                .font(.custom("Georgia", size: 15))
-                                                .italic()
-                                                .foregroundColor(Color(hex: "a8a29e"))
-                                                .padding(.leading, 28)
-                                                .allowsHitTesting(false)
-                                        }
                                         
-                                        HStack(alignment: .top, spacing: 8) {
-                                            Spacer()
-                                                .frame(width: 20)
+                                        ZStack(alignment: .topLeading) {
+                                            if newBulletText.isEmpty {
+                                                Text("Add your new reflection...")
+                                                    .font(.custom("Georgia", size: 15))
+                                                    .italic()
+                                                    .foregroundColor(Color(hex: "a8a29e"))
+                                                    .allowsHitTesting(false)
+                                            }
                                             
                                             TextEditor(text: $newBulletText)
                                                 .font(.custom("Georgia", size: 15))
@@ -180,43 +168,57 @@ struct JournalView: View {
                                                 .frame(minHeight: 60, maxHeight: 100)
                                                 .focused($isBulletInputFocused)
                                         }
-                                    }
-                                    
-                                    // Action buttons
-                                    HStack {
-                                        Spacer()
                                         
-                                        Button(action: {
-                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                isAddingBullet = false
-                                                newBulletText = ""
+                                        // Action buttons
+                                        HStack {
+                                            Spacer()
+                                            
+                                            Button(action: {
+                                                withAnimation(.easeInOut(duration: 0.2)) {
+                                                    isAddingBullet = false
+                                                    newBulletText = ""
+                                                }
+                                            }) {
+                                                Text("Cancel")
+                                                    .font(.system(size: 12, weight: .medium))
+                                                    .foregroundColor(Theme.textMuted)
+                                                    .padding(.horizontal, 16)
+                                                    .padding(.vertical, 8)
                                             }
-                                        }) {
-                                            Text("Cancel")
-                                                .font(.system(size: 12, weight: .medium))
-                                                .foregroundColor(Theme.textMuted)
-                                                .padding(.horizontal, 16)
-                                                .padding(.vertical, 8)
+                                            
+                                            Button(action: saveBullet) {
+                                                Text("Add")
+                                                    .font(.system(size: 12, weight: .semibold))
+                                                    .foregroundColor(.white)
+                                                    .padding(.horizontal, 20)
+                                                    .padding(.vertical, 8)
+                                                    .background(
+                                                        Capsule()
+                                                            .fill(Theme.accent)
+                                                    )
+                                            }
+                                            .disabled(newBulletText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                            .opacity(newBulletText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
                                         }
-                                        
-                                        Button(action: saveBullet) {
-                                            Text("Add")
-                                                .font(.system(size: 12, weight: .semibold))
-                                                .foregroundColor(.white)
-                                                .padding(.horizontal, 20)
-                                                .padding(.vertical, 8)
-                                                .background(
-                                                    Capsule()
-                                                        .fill(Theme.accent)
-                                                )
-                                        }
-                                        .disabled(newBulletText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                                        .opacity(newBulletText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
                                     }
                                 }
                                 .padding(.horizontal, 24)
-                                .padding(.bottom, 16)
                             }
+                            
+                            // MARK: - Bullet Timeline (Newest → Oldest)
+                            VStack(alignment: .leading, spacing: 0) {
+                                let reversedBullets = Array(note.bullets.reversed())
+                                ForEach(Array(reversedBullets.enumerated()), id: \.element.id) { index, bullet in
+                                    BulletTimelineItem(
+                                        bullet: bullet,
+                                        isFirst: index == 0 && !isAddingBullet,
+                                        isLast: index == reversedBullets.count - 1,
+                                        hasNewBulletAbove: index == 0 && isAddingBullet
+                                    )
+                                }
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 16)
                         }
                     }
                     
@@ -318,6 +320,7 @@ struct BulletTimelineItem: View {
     let bullet: Bullet
     let isFirst: Bool
     let isLast: Bool
+    var hasNewBulletAbove: Bool = false
     
     private var formattedTimestamp: String {
         let formatter = DateFormatter()
@@ -340,14 +343,14 @@ struct BulletTimelineItem: View {
         HStack(alignment: .top, spacing: 8) {
             // Timeline indicator
             VStack(spacing: 0) {
-                // Top line (hidden for first item)
+                // Top line (hidden for first item unless there's a new bullet input above)
                 Rectangle()
-                    .fill(isFirst ? Color.clear : Color(hex: "8c7b64").opacity(0.3))
+                    .fill((isFirst && !hasNewBulletAbove) ? Color.clear : Color(hex: "8c7b64").opacity(0.3))
                     .frame(width: 2, height: 8)
                 
                 // Dot
                 Circle()
-                    .fill(isFirst ? Theme.accent : Color(hex: "8c7b64").opacity(0.5))
+                    .fill((isFirst && !hasNewBulletAbove) ? Theme.accent : Color(hex: "8c7b64").opacity(0.5))
                     .frame(width: 8, height: 8)
                 
                 // Bottom line (hidden for last item)

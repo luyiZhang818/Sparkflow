@@ -17,7 +17,7 @@ struct GlassCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Top Row: Tags + Date + Bullet Dots
+            // Top Row: Tags + Date
             HStack(alignment: .top, spacing: 12) {
                 // Tags Pills with colored backgrounds
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -43,16 +43,6 @@ struct GlassCardView: View {
                 
                 Spacer()
                 
-                // Bullet Count Dots
-                HStack(spacing: 4) {
-                    ForEach(0..<displayDotCount, id: \.self) { _ in
-                        Circle()
-                            .fill(Theme.accent)
-                            .frame(width: 6, height: 6)
-                    }
-                }
-                .padding(.trailing, 4)
-                
                 // Date - fixed on the right
                 Text(formattedDate)
                     .font(.system(size: 12, weight: .medium))
@@ -72,18 +62,32 @@ struct GlassCardView: View {
             
             Spacer(minLength: 16)
             
-            // MARK: - Source (if available, subtle display)
-            if let source = note.source, !source.isEmpty {
-                HStack(spacing: 4) {
-                    Image(systemName: "link")
-                        .font(.system(size: 9, weight: .medium))
-                    Text(source)
-                        .font(.system(size: 11, weight: .medium))
-                        .lineLimit(1)
+            // MARK: - Bottom Row: Source + Bullet Count Dots
+            HStack(alignment: .center) {
+                // Source (if available)
+                if let source = note.source, !source.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "link")
+                            .font(.system(size: 9, weight: .medium))
+                        Text(source)
+                            .font(.system(size: 11, weight: .medium))
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(Theme.accent.opacity(0.8))
                 }
-                .foregroundColor(Theme.accent.opacity(0.8))
-                .padding(.top, 8)
+                
+                Spacer()
+                
+                // Bullet Count Dots (bottom-right)
+                HStack(spacing: 4) {
+                    ForEach(0..<displayDotCount, id: \.self) { _ in
+                        Circle()
+                            .fill(Theme.accent)
+                            .frame(width: 6, height: 6)
+                    }
+                }
             }
+            .padding(.top, 8)
         }
         .padding(20)
         .frame(minHeight: 160)

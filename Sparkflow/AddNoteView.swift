@@ -339,14 +339,6 @@ struct AddNoteView: View {
                                     .frame(minHeight: 80, maxHeight: 150)
                                     .focused($focusedField, equals: .bullet)
                             }
-                            
-                            // Timestamp preview
-                            HStack {
-                                Spacer()
-                                Text(timestampPreview())
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundColor(Color(hex: "8c7b64").opacity(0.6))
-                            }
                         }
                         .padding(.horizontal, 24)
                         .padding(.top, 16)
@@ -371,6 +363,20 @@ struct AddNoteView: View {
                         Spacer()
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                )
+                .overlay(
+                    // Timestamp at absolute bottom-right of card
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            Text(timestampPreview())
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(Color(hex: "8c7b64").opacity(0.5))
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 16)
+                    }
                 )
                 .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
                 .padding(.horizontal, 24)

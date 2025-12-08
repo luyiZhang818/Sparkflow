@@ -164,13 +164,13 @@ struct ContentView: View {
                 // Scrollable Content
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 24) {
-                        // Featured Note (Quote Widget)
-                        if let featuredNote = featuredNote {
-                            FeaturedNoteView(note: featuredNote)
-                                .onTapGesture {
-                                    selectedNoteForReading = featuredNote
+                        // Featured Note (Quote Widget) - Always visible
+                        FeaturedNoteView(note: featuredNote)
+                            .onTapGesture {
+                                if let note = featuredNote {
+                                    selectedNoteForReading = note
                                 }
-                        }
+                            }
                         
                         // Notes List
                         LazyVStack(spacing: 16) {

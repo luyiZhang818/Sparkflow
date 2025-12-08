@@ -1,7 +1,23 @@
 import SwiftUI
 
 struct FeaturedNoteView: View {
-    let note: Note
+    let note: Note?  // Optional - nil means show placeholder
+    
+    // Placeholder spark for zero-entry state
+    private var displaySpark: String {
+        note?.spark ?? "Jot down your first spark."
+    }
+    
+    private var displaySource: String? {
+        if let note = note {
+            return note.source
+        }
+        return "Dev Team"  // Placeholder source
+    }
+    
+    private var isPlaceholder: Bool {
+        note == nil
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -27,7 +43,7 @@ struct FeaturedNoteView: View {
             .padding(.bottom, 24)
             
             // MARK: - Spark Content (Primary Display)
-            Text("\"\(note.spark)\"")
+            Text("\"\(displaySpark)\"")
                 .font(.custom("PlayfairDisplay-Regular", size: 22))
                 .italic()
                 .foregroundColor(Theme.textPrimary)
@@ -41,7 +57,7 @@ struct FeaturedNoteView: View {
                 .frame(height: 20)
             
             // MARK: - Source Label (Only if available)
-            if let source = note.source, !source.isEmpty {
+            if let source = displaySource, !source.isEmpty {
                 Text(source.uppercased())
                     .font(.system(size: 11, weight: .bold))
                     .tracking(2)
@@ -54,7 +70,7 @@ struct FeaturedNoteView: View {
                 .frame(height: 16)
             
             // MARK: - Microcopy / Call to Action
-            Text("Tap to revisit this spark")
+            Text(isPlaceholder ? "Tap + to capture your first thought" : "Tap to revisit this spark")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundColor(Theme.textMuted.opacity(0.7))
                 .italic()
@@ -75,12 +91,12 @@ struct FeaturedNoteView_Previews: PreviewProvider {
         ZStack {
             Theme.backgroundMesh
             VStack(spacing: 20) {
-                // With source
-                FeaturedNoteView(note: sampleNotes[0])
+                // Placeholder (zero entries)
+                FeaturedNoteView(note: nil)
                     .padding()
                 
-                // Without source
-                FeaturedNoteView(note: sampleNotes[2])
+                // With source
+                FeaturedNoteView(note: sampleNotes[0])
                     .padding()
             }
         }
