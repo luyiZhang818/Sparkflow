@@ -5,7 +5,6 @@ struct JournalView: View {
     @EnvironmentObject var noteStore: NoteStore
     @Environment(\.presentationMode) var presentationMode
     @State private var currentPage = 0
-    @State private var searchText = ""
     @State private var isEditing = false
     @State private var editedTitle: String = ""
     @State private var editedContent: String = ""
@@ -32,24 +31,6 @@ struct JournalView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE, d MMMM yyyy"
         return formatter.string(from: note.createdAt)
-    }
-    
-    // Search results - find matching text ranges
-    private var searchResults: [Range<String.Index>] {
-        guard !searchText.isEmpty else { return [] }
-        let contentToSearch = isEditing ? editedContent : note.content
-        var ranges: [Range<String.Index>] = []
-        var searchStart = contentToSearch.startIndex
-        while let range = contentToSearch.range(of: searchText, options: .caseInsensitive, range: searchStart..<contentToSearch.endIndex) {
-            ranges.append(range)
-            searchStart = range.upperBound
-        }
-        return ranges
-    }
-    
-    // Count of search matches
-    private var matchCount: Int {
-        searchResults.count
     }
 
     init(note: Note) {
@@ -83,21 +64,21 @@ struct JournalView: View {
                     }
                 }
                 .padding(.horizontal, 24)
-                .padding(.top, 24)
+                .padding(.top, 20)
                 
                 // Date Header
                 Text(formattedDate)
-                    .font(.system(size: 13, weight: .regular))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundColor(Theme.textMuted)
-                    .padding(.top, 8)
+                    .padding(.top, 4)
                 
                 // Title - Reading mode
                 Text("Revisit your spark")
-                    .font(.custom("PlayfairDisplay-Regular", size: 28))
+                    .font(.custom("PlayfairDisplay-Regular", size: 24))
                     .italic()
                     .foregroundColor(Theme.textPrimary)
-                    .padding(.top, 8)
-                    .padding(.bottom, 24)
+                    .padding(.top, 2)
+                    .padding(.bottom, 20) // Margin A
                 
                 // The Book/Page View
                 if isEditing {
@@ -118,6 +99,9 @@ struct JournalView: View {
                             isEditing = false
                         }
                     )
+                    
+                    // Flexible spacer to push bottom panels down
+                    Spacer()
                 } else {
                     // Read Mode - Paginated view
                     TabView(selection: $currentPage) {
@@ -130,7 +114,6 @@ struct JournalView: View {
                                 pageNumber: index + 1,
                                 totalPages: pages.count,
                                 isFirstPage: index == 0,
-                                searchText: searchText,
                                 onTapToEdit: {
                                     isEditing = true
                                 }
@@ -139,51 +122,17 @@ struct JournalView: View {
                         }
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))
-                    .frame(maxHeight: .infinity)
+                    .frame(height: 460) // Larger page section
                 }
                 
+                // Spacer with fixed height for Margin B (same as Margin A)
                 Spacer()
-                    .frame(height: 20)
-                
-                // Search Bar at bottom - Liquid Glass
-                HStack(spacing: 12) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(Theme.textSecondary)
-                    
-                    TextField("Search your spark...", text: $searchText)
-                        .font(.system(size: 15))
-                        .foregroundColor(Theme.textPrimary)
-                        .accentColor(Theme.accent)
-                    
-                    if !searchText.isEmpty {
-                        // Show match count
-                        Text("\(matchCount) found")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(Theme.accent)
-                        
-                        Button(action: { searchText = "" }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 16))
-                                .foregroundColor(Theme.textSecondary)
-                        }
-                    } else {
-                        // AI Sparkle icon
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 14))
-                            .foregroundColor(Theme.accent.opacity(0.7))
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .liquidGlass(cornerRadius: 16, intensity: 0.7)
-                .padding(.horizontal, 24)
-                .padding(.bottom, 16)
+                    .frame(height: 20) // Margin B
                 
                 // Entry Dots Panel - Visual representation of journal entries
                 EntryDotsView(notes: noteStore.notes, currentNoteId: note.id)
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 40)
+                    .padding(.bottom, 24)
             }
         }
         .navigationBarHidden(true)
@@ -207,45 +156,7 @@ struct JournalPageView: View {
     let pageNumber: Int
     let totalPages: Int
     let isFirstPage: Bool
-    let searchText: String
     let onTapToEdit: () -> Void
-    
-    // Highlight search matches in the content
-    private func highlightedContent() -> Text {
-        guard !searchText.isEmpty else {
-            return Text(content)
-                .font(.custom("Georgia", size: 17))
-                .foregroundColor(Theme.textDark)
-        }
-        
-        var result = Text("")
-        var remaining = content
-        
-        while let range = remaining.range(of: searchText, options: .caseInsensitive) {
-            // Add text before match
-            let beforeMatch = String(remaining[..<range.lowerBound])
-            result = result + Text(beforeMatch)
-                .font(.custom("Georgia", size: 17))
-                .foregroundColor(Theme.textDark)
-            
-            // Add highlighted match
-            let match = String(remaining[range])
-            result = result + Text(match)
-                .font(.custom("Georgia", size: 17))
-                .foregroundColor(Color(hex: "92400E"))
-                .bold()
-                .underline()
-            
-            remaining = String(remaining[range.upperBound...])
-        }
-        
-        // Add remaining text
-        result = result + Text(remaining)
-            .font(.custom("Georgia", size: 17))
-            .foregroundColor(Theme.textDark)
-        
-        return result
-    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -257,20 +168,22 @@ struct JournalPageView: View {
                     .foregroundColor(Theme.textDark)
                     .padding(.bottom, 8)
                 
-                // Tags Row
+                // Tags Row - All tags with horizontal scroll
                 if !tags.isEmpty {
-                    HStack(spacing: 6) {
-                        ForEach(tags.prefix(3), id: \.self) { tag in
-                            Text(tag.uppercased())
-                                .font(.system(size: 9, weight: .bold))
-                                .tracking(0.5)
-                                .foregroundColor(Color(hex: "8c7b64"))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .stroke(Color(hex: "8c7b64").opacity(0.4), lineWidth: 1)
-                                )
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(tags, id: \.self) { tag in
+                                Text(tag.uppercased())
+                                    .font(.system(size: 9, weight: .bold))
+                                    .tracking(0.5)
+                                    .foregroundColor(Color(hex: "8c7b64"))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .stroke(Color(hex: "8c7b64").opacity(0.4), lineWidth: 1)
+                                    )
+                            }
                         }
                     }
                     .padding(.bottom, 8)
@@ -287,8 +200,10 @@ struct JournalPageView: View {
                     .padding(.bottom, 16)
             }
             
-            // Content - Serif italic text with search highlighting
-            highlightedContent()
+            // Content - Serif italic text
+            Text(content)
+                .font(.custom("Georgia", size: 17))
+                .foregroundColor(Theme.textDark)
                 .lineSpacing(8)
                 .frame(maxWidth: .infinity, alignment: .leading)
             
@@ -459,7 +374,8 @@ struct JournalEditView: View {
                 .padding(.bottom, 16)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .frame(height: 420) // Same height as read mode and AddNoteView
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(Color(hex: "e8e4dc"))

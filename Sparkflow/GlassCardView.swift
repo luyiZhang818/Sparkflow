@@ -13,33 +13,34 @@ struct GlassCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Top Row: Tags + Date
-            HStack(alignment: .top) {
-                // Tags Pills with colored backgrounds
-                HStack(spacing: 6) {
-                    ForEach(note.tags.prefix(2), id: \.self) { tag in
-                        Text(tag.uppercased())
-                            .font(.system(size: 9, weight: .bold))
-                            .tracking(0.5)
-                            .foregroundColor(Theme.textPrimary.opacity(0.9))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Theme.tagColor(for: tag))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Theme.tagBorderColor(for: tag), lineWidth: 1)
-                            )
+            HStack(alignment: .top, spacing: 12) {
+                // Tags Pills with colored backgrounds - All tags with horizontal scroll
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(note.tags, id: \.self) { tag in
+                            Text(tag.uppercased())
+                                .font(.system(size: 9, weight: .bold))
+                                .tracking(0.5)
+                                .foregroundColor(Theme.textPrimary.opacity(0.9))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .fill(Theme.tagColor(for: tag))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(Theme.tagBorderColor(for: tag), lineWidth: 1)
+                                )
+                        }
                     }
                 }
                 
-                Spacer()
-                
-                // Date
+                // Date - fixed on the right
                 Text(formattedDate)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(Theme.textMuted)
+                    .fixedSize()
             }
             .padding(.bottom, 16)
             

@@ -98,7 +98,66 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 20)
-                .padding(.bottom, 24)
+                .padding(.bottom, 16)
+                
+                // Search & Filter Card - Fixed at top (outside ScrollView)
+                VStack(spacing: 12) {
+                    // Search Bar
+                    HStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(Theme.textSecondary)
+                            .font(.system(size: 16, weight: .medium))
+                        TextField("Search entries...", text: $searchText)
+                            .foregroundColor(Theme.textPrimary)
+                            .accentColor(Theme.accent)
+                            .font(.system(size: 15))
+                        
+                        if !searchText.isEmpty {
+                            Button(action: { searchText = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(Theme.textSecondary)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                    
+                    Divider()
+                        .background(Color.white.opacity(0.08))
+                    
+                    // Tag Filter Pills
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            TagFilterButton(
+                                tag: "All",
+                                isSelected: selectedTag == nil,
+                                action: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedTag = nil
+                                    }
+                                }
+                            )
+                            
+                            ForEach(allTags, id: \.self) { tag in
+                                TagFilterButton(
+                                    tag: tag.capitalized,
+                                    isSelected: selectedTag == tag,
+                                    action: {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            selectedTag = selectedTag == tag ? nil : tag
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                    }
+                }
+                .liquidGlassPanel()
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
 
                 // Scrollable Content
                 ScrollView(.vertical, showsIndicators: false) {
@@ -110,57 +169,6 @@ struct ContentView: View {
                                     selectedNoteForReading = featuredNote
                                 }
                         }
-                        
-                        // Search & Filter Card - Glassmorphism
-                        VStack(spacing: 12) {
-                            // Search Bar
-                            HStack(spacing: 12) {
-                                Image(systemName: "magnifyingglass")
-                                    .foregroundColor(Theme.textSecondary)
-                                    .font(.system(size: 16, weight: .medium))
-                                TextField("Search entries...", text: $searchText)
-                                    .foregroundColor(Theme.textPrimary)
-                                    .accentColor(Theme.accent)
-                                    .font(.system(size: 15))
-                                
-                                if !searchText.isEmpty {
-                                    Button(action: { searchText = "" }) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .font(.system(size: 16))
-                                            .foregroundColor(Theme.textSecondary)
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 14)
-                            
-                            Divider()
-                                .background(Color.white.opacity(0.08))
-                            
-                            // Tag Filter Pills
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    TagFilterButton(
-                                        tag: "All",
-                                        isSelected: selectedTag == nil,
-                                        action: { selectedTag = nil }
-                                    )
-                                    
-                                    ForEach(allTags, id: \.self) { tag in
-                                        TagFilterButton(
-                                            tag: tag.capitalized,
-                                            isSelected: selectedTag == tag,
-                                            action: {
-                                                selectedTag = selectedTag == tag ? nil : tag
-                                            }
-                                        )
-                                    }
-                                }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                            }
-                        }
-                        .liquidGlassPanel()
                         
                         // Notes List
                         LazyVStack(spacing: 16) {

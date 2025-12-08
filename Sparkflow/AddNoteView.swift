@@ -6,9 +6,11 @@ struct AddNoteView: View {
 
     @State private var title = ""
     @State private var content = ""
-    @State private var tagInput = ""
     @State private var tags: [String] = []
+    @State private var isAddingTag = false
+    @State private var newTagInput = ""
     @FocusState private var isContentFocused: Bool
+    @FocusState private var isTagInputFocused: Bool
     
     // All available tags from existing notes
     private var availableTags: [String] {
@@ -71,28 +73,28 @@ struct AddNoteView: View {
                             )
                             .shadow(color: Theme.accentGlow.opacity(0.4), radius: 8, x: 0, y: 4)
                     }
-                    .disabled(title.isEmpty && content.isEmpty)
-                    .opacity(title.isEmpty && content.isEmpty ? 0.5 : 1)
+                    .disabled(content.isEmpty)
+                    .opacity(content.isEmpty ? 0.5 : 1)
                 }
                 .padding(.horizontal, 24)
-                .padding(.top, 24)
+                .padding(.top, 20)
                 
                 // Date
                 Text(currentDate)
-                    .font(.system(size: 13, weight: .regular))
+                    .font(.system(size: 12, weight: .regular))
                     .foregroundColor(Theme.textMuted)
-                    .padding(.top, 12)
+                    .padding(.top, 4)
                 
                 // Title - "Jot down your spark" with spark italicized
                 HStack(spacing: 0) {
                     Text("Jot down your ")
-                        .font(.custom("PlayfairDisplay-Regular", size: 28))
+                        .font(.custom("PlayfairDisplay-Regular", size: 24))
                     Text("spark")
-                        .font(.custom("PlayfairDisplay-Italic", size: 28))
+                        .font(.custom("PlayfairDisplay-Italic", size: 24))
                 }
                 .foregroundColor(Theme.textPrimary)
-                .padding(.top, 4)
-                .padding(.bottom, 16)
+                .padding(.top, 2)
+                .padding(.bottom, 20) // Margin A
                 
                 // Book/Journal Card - Fixed height like JournalView
                 VStack(alignment: .leading, spacing: 0) {
@@ -108,9 +110,90 @@ struct AddNoteView: View {
                         .background(Color(hex: "d4d0c8"))
                         .padding(.horizontal, 24)
                     
-                    // Tags Row - Current tags on this entry
+                    // Tags Row - Order: +TAG | Selected tags | Available tags
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
+                            // +TAG button or input field
+                            if isAddingTag {
+                                HStack(spacing: 4) {
+                                    TextField("NEW TAG", text: $newTagInput)
+                                        .font(.system(size: 9, weight: .bold))
+                                        .tracking(0.5)
+                                        .textCase(.uppercase)
+                                        .foregroundColor(Color(hex: "8c7b64"))
+                                        .textInputAutocapitalization(.characters)
+                                        .autocorrectionDisabled()
+                                        .frame(width: 55)
+                                        .focused($isTagInputFocused)
+                                        .onChange(of: newTagInput) { _, newValue in
+                                            newTagInput = newValue.uppercased()
+                                        }
+                                        .onSubmit {
+                                            addNewTag()
+                                        }
+                                    
+                                    Button(action: addNewTag) {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 8, weight: .bold))
+                                            .foregroundColor(Theme.accent)
+                                    }
+                                    
+                                    Button(action: {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            isAddingTag = false
+                                            newTagInput = ""
+                                        }
+                                    }) {
+                                        Image(systemName: "xmark")
+                                            .font(.system(size: 8, weight: .bold))
+                                            .foregroundColor(Color(hex: "8c7b64").opacity(0.6))
+                                    }
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color(hex: "8c7b64").opacity(0.1))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(Color(hex: "8c7b64").opacity(0.4), lineWidth: 1)
+                                )
+                            } else {
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        isAddingTag = true
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                            isTagInputFocused = true
+                                        }
+                                    }
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "plus")
+                                            .font(.system(size: 9, weight: .bold))
+                                        Text("TAG")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .tracking(0.5)
+                                    }
+                                    .foregroundColor(Color(hex: "8c7b64").opacity(0.7))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .stroke(Color(hex: "8c7b64").opacity(0.3), lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                            
+                            // Divider after +TAG
+                            if !tags.isEmpty || !availableTags.filter({ !tags.contains($0) }).isEmpty {
+                                Rectangle()
+                                    .fill(Color(hex: "8c7b64").opacity(0.3))
+                                    .frame(width: 1, height: 16)
+                            }
+                            
+                            // Selected tags first (with X to remove) - Style A
                             ForEach(tags, id: \.self) { tag in
                                 HStack(spacing: 4) {
                                     Text(tag.uppercased())
@@ -131,7 +214,7 @@ struct AddNoteView: View {
                                 .padding(.vertical, 6)
                                 .background(
                                     RoundedRectangle(cornerRadius: 4)
-                                        .fill(Theme.tagColor(for: tag).opacity(0.3))
+                                        .fill(Color(hex: "8c7b64").opacity(0.1))
                                 )
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 4)
@@ -139,23 +222,32 @@ struct AddNoteView: View {
                                 )
                             }
                             
-                            // Add Tag Input
-                            HStack(spacing: 4) {
-                                TextField("+TAG", text: $tagInput)
-                                    .font(.system(size: 9, weight: .bold))
-                                    .foregroundColor(Color(hex: "8c7b64"))
-                                    .frame(width: 50)
-                                    .autocapitalization(.none)
-                                    .disableAutocorrection(true)
-                                    .onSubmit {
-                                        addCustomTag()
+                            // Divider between selected and available
+                            if !tags.isEmpty && !availableTags.filter({ !tags.contains($0) }).isEmpty {
+                                Rectangle()
+                                    .fill(Color(hex: "8c7b64").opacity(0.3))
+                                    .frame(width: 1, height: 16)
+                            }
+                            
+                            // Available tags to add (not already selected)
+                            ForEach(availableTags.filter { !tags.contains($0) }, id: \.self) { tag in
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        tags.insert(tag, at: 0)
                                     }
-                                
-                                Button(action: addCustomTag) {
-                                    Image(systemName: "plus")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(Color(hex: "8c7b64"))
+                                }) {
+                                    Text(tag.uppercased())
+                                        .font(.system(size: 9, weight: .bold))
+                                        .tracking(0.5)
+                                        .foregroundColor(Color(hex: "8c7b64").opacity(0.7))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .stroke(Color(hex: "8c7b64").opacity(0.3), lineWidth: 1)
+                                        )
                                 }
+                                .buttonStyle(PlainButtonStyle())
                             }
                         }
                         .padding(.horizontal, 24)
@@ -187,7 +279,7 @@ struct AddNoteView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 340) // Reduced height to fit screen better
+                .frame(height: 460) // Larger page section
                 .background(
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .fill(Color(hex: "e8e4dc"))
@@ -208,16 +300,9 @@ struct AddNoteView: View {
                 .shadow(color: Color.black.opacity(0.3), radius: 20, x: 0, y: 10)
                 .padding(.horizontal, 24)
                 
+                // Spacer with fixed height for Margin B (same as Margin A)
                 Spacer()
-                    .frame(height: 16)
-                
-                // Quick Tags Panel - Tap to add tags
-                QuickTagsPanel(
-                    availableTags: availableTags,
-                    selectedTags: $tags
-                )
-                .padding(.horizontal, 24)
-                .padding(.bottom, 12)
+                    .frame(height: 20) // Margin B
                 
                 // Entry Dots Panel
                 AddNoteEntryDotsView(notes: noteStore.notes)
@@ -240,16 +325,17 @@ struct AddNoteView: View {
         )
     }
     
-    private func addCustomTag() {
-        let trimmed = tagInput.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    private func addNewTag() {
+        let trimmed = newTagInput.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if !trimmed.isEmpty && !tags.contains(trimmed) {
             withAnimation(.easeInOut(duration: 0.2)) {
-                tags.append(trimmed)
+                tags.insert(trimmed, at: 0)
+                isAddingTag = false
+                newTagInput = ""
             }
-            tagInput = ""
         }
     }
-
+    
     private func saveNote() {
         let newNote = Note(
             title: title.isEmpty ? "Untitled" : title,
@@ -259,71 +345,6 @@ struct AddNoteView: View {
         )
         noteStore.notes.insert(newNote, at: 0)
         noteStore.save()
-    }
-}
-
-// Quick Tags Panel - Shows all available tags for quick selection
-struct QuickTagsPanel: View {
-    let availableTags: [String]
-    @Binding var selectedTags: [String]
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Label
-            Text("Quick add tags")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(Theme.textMuted)
-            
-            // Tags Flow
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(availableTags, id: \.self) { tag in
-                        let isSelected = selectedTags.contains(tag)
-                        
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                if isSelected {
-                                    selectedTags.removeAll { $0 == tag }
-                                } else {
-                                    selectedTags.append(tag)
-                                }
-                            }
-                        }) {
-                            Text(tag.capitalized)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(isSelected ? Theme.textPrimary : Theme.textSecondary)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(isSelected ? tagColor(for: tag).opacity(0.4) : Color.white.opacity(0.05))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(isSelected ? tagColor(for: tag).opacity(0.6) : Color.white.opacity(0.1), lineWidth: 1)
-                                )
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                }
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .liquidGlass(cornerRadius: 16, intensity: 0.6)
-    }
-    
-    private func tagColor(for tag: String) -> Color {
-        switch tag.lowercased() {
-        case "inspiration": return Color(hex: "F59E0B")
-        case "quote": return Color(hex: "a8a29e")
-        case "idea": return Color(hex: "ea580c")
-        case "journal": return Color(hex: "f472b6")
-        case "dream": return Color(hex: "818cf8")
-        case "stoicism": return Color(hex: "9ca3af")
-        case "design": return Color(hex: "a3a3a3")
-        default: return Color(hex: "D97706")
-        }
     }
 }
 
